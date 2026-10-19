@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Car Launcher</title>
+<style>
+:root{
+  --ac:#22e3d6; --ac2:#ff9a1f;
+  --bg:#05080b; --panel:rgba(10,30,36,.62); --line:rgba(120,220,220,.25);
+  --txt:#e9f6f6; --mut:#8fb3b5;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{width:100%;height:100%;background:var(--bg);overflow:hidden;font-family:"Roboto Condensed","Roboto","Arial Narrow",sans-serif;color:var(--txt)}
+#stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;
+  background:
+   radial-gradient(900px 420px at 72% 70%, color-mix(in srgb,var(--ac) 14%,transparent), transparent 70%),
+   radial-gradient(600px 300px at 20% 10%, rgba(255,255,255,.04), transparent 70%),
+   linear-gradient(180deg,#0b1216 0%,#070b0e 55%,#030507 100%);}
+/* fallback for old WebView without color-mix */
+@supports not (background:color-mix(in srgb,red 10%,blue)){
+  #stage{background:radial-gradient(900px 420px at 72% 70%, rgba(34,227,214,.12), transparent 70%),linear-gradient(180deg,#0b1216,#030507)}
+}
+.frame{position:absolute;pointer-events:none}
+.glow{color:var(--ac);text-shadow:0 0 12px var(--ac)}
+.panel{position:absolute;border:1.5px solid var(--line);border-radius:18px;background:var(--panel);
+  box-shadow:inset 0 0 30px rgba(0,0,0,.35),0 0 0 1px rgba(0,0,0,.4);overflow:hidden;
+  border-color:color-mix(in srgb,var(--ac) 40%,transparent)}
+.panel:before{content:"";position:absolute;top:0;left:0;right:0;bottom:0;background:
+  linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px) 0 0/100% 6px;pointer-events:none}
+.tap{cursor:pointer;transition:transform .12s, filter .12s}
+.tap:active{transform:scale(.96);filter:brightness(1.3)}
+
+/* top bar */
+#topbar{position:absolute;left:26px;top:14px;height:58px;width:520px}
+#avatar{position:absolute;left:0;top:0;width:58px;height:58px;border-radius:50%;
+  background:radial-gradient(circle,#2a3238 40%,#11171b 42%,#1b2328 70%,#0c1013 72%);border:2px solid #39434a;
+  display:flex;align-items:center;justify-content:center}
+#weatherPill{position:absolute;left:52px;top:9px;height:42px;width:360px;
+  background:var(--ac2);background:linear-gradient(90deg,var(--ac2),color-mix(in srgb,var(--ac2) 60%,#000));
+  clip-path:polygon(0 0,92% 0,100% 100%,0 100%);display:flex;align-items:center;padding-left:26px;gap:10px;
+  font-size:24px;color:#2a1600;font-weight:700;letter-spacing:.5px}
+#topRight{position:absolute;right:24px;top:16px;display:flex;gap:12px;align-items:center}
+.iconBtn{width:50px;height:50px;border-radius:14px;border:1.5px solid var(--line);background:rgba(10,30,36,.6);
+  display:flex;align-items:center;justify-content:center;border-color:color-mix(in srgb,var(--ac) 45%,transparent)}
+.iconBtn svg{width:28px;height:28px;stroke:var(--ac);fill:none;stroke-width:2}
+#netTime{font-size:20px;color:var(--mut)}
+
+/* slots */
+#slotA{left:26px;top:88px;width:500px;height:186px}
+#slotB{left:26px;top:290px;width:500px;height:186px}
+#slotC{right:24px;top:80px;width:380px;height:250px}
+#clockBar{position:absolute;left:26px;top:492px;width:520px;height:70px}
+#clockBar .t{position:absolute;left:12px;top:2px;font-size:62px;font-weight:300;letter-spacing:3px;line-height:66px}
+#clockBar .d{position:absolute;left:220px;top:10px;width:280px;font-size:20px;display:flex;justify-content:space-between}
+#clockBar .bar{position:absolute;left:220px;top:44px;width:280px;height:10px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+#clockBar .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--ac2),#ffd36a);box-shadow:0 0 10px var(--ac2)}
+#clockBar:after{content:"";position:absolute;left:200px;right:-10px;bottom:0;height:2px;background:linear-gradient(90deg,var(--ac2),transparent)}
+
+/* car */
+#carWrap{position:absolute;left:520px;top:300px;width:760px;height:290px;display:flex;align-items:flex-end;justify-content:center}
+#carWrap svg,#carWrap img{width:700px;max-height:280px;object-fit:contain;filter:drop-shadow(0 18px 18px rgba(0,0,0,.7))}
+#carFloor{position:absolute;left:560px;top:540px;width:680px;height:60px;border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(34,227,214,.3),transparent 70%);background:radial-gradient(ellipse at center,color-mix(in srgb,var(--ac) 35%,transparent),transparent 70%);opacity:.7}
+#carName{position:absolute;left:600px;top:340px;font-size:15px;letter-spacing:6px;color:var(--mut);text-transform:uppercase}
+
+/* dock */
+#dock{position:absolute;left:26px;right:24px;top:604px;height:100px;display:flex;border:1.5px solid #3a454c;border-radius:14px;
+  background:linear-gradient(180deg,#151c21,#0b1013);box-shadow:0 -6px 30px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06)}
+#dock .d{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-right:1px solid #232c32}
+#dock .d:last-child{border-right:none}
+#dock svg{width:40px;height:40px;stroke:#dfe9ea;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#dock .d span{font-size:14px;color:var(--mut);letter-spacing:.5px}
+#dock .d:active svg{stroke:var(--ac);filter:drop-shadow(0 0 6px var(--ac))}
+
+/* widgets common */
+.w{position:absolute;top:0;left:0;right:0;bottom:0;padding:16px 20px}
+.w .lbl{font-size:15px;color:var(--mut);letter-spacing:1px;text-transform:uppercase}
+.w .big{font-weight:300;line-height:1}
+.ctrl{display:flex;gap:26px;align-items:center}
+.ctrl div{width:46px;height:46px;display:flex;align-items:center;justify-content:center}
+.ctrl svg{width:34px;height:34px;fill:var(--ac);filter:drop-shadow(0 0 6px var(--ac))}
+/* music */
+.cover{position:absolute;width:132px;height:132px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#bff6ff,var(--ac) 40%,#0b3a44 75%);box-shadow:0 0 22px var(--ac);
+  background-size:cover;background-position:center;border:3px solid rgba(255,255,255,.25)}
+.cover.spin{animation:spin 12s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ellip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* compass */
+.rose{position:absolute;width:150px;height:150px}
+.rose .num{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:30px;color:var(--ac);text-shadow:0 0 10px var(--ac)}
+.rose .num small{font-size:16px}
+/* calendar */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:16px}
+.cal b{color:var(--mut);font-weight:400;font-size:13px;padding-bottom:4px}
+.cal span{padding:4px 0;border-radius:8px;color:var(--txt)}
+.cal span.o{color:rgba(255,255,255,.22)}
+.cal span.we{color:var(--ac2)}
+.cal span.today{background:var(--ac);color:#03181a;font-weight:700;box-shadow:0 0 12px var(--ac)}
+/* apps widget */
+.agrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;height:100%}
+.agrid .a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;background:rgba(255,255,255,.04)}
+.agrid .a img,.agrid .a .ph{width:46px;height:46px;border-radius:12px}
+.agrid .a .ph{background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:26px;color:var(--ac)}
+.agrid .a span{font-size:13px;color:var(--mut);max-width:96%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* overlays */
+.ov{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(3,6,8,.97);display:none;z-index:50}
+.ov.on{display:block}
+.ovHead{height:74px;display:flex;align-items:center;padding:0 28px;gap:18px;border-bottom:1px solid var(--line)}
+.ovHead h2{font-size:28px;font-weight:400;flex:1}
+.ovBody{position:absolute;top:74px;left:0;right:0;bottom:0;overflow-y:auto;padding:22px 28px;-webkit-overflow-scrolling:touch}
+.apps{display:grid;grid-template-columns:repeat(8,1fr);gap:18px 10px}
+.apps .a{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 4px;border-radius:14px}
+.apps .a:active{background:rgba(255,255,255,.08)}
+.apps img,.apps .ph{width:72px;height:72px;border-radius:16px}
+.apps .ph{background:rgba(255,255,255,.08)}
+.apps span{font-size:15px;text-align:center;color:var(--txt);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sect{margin-bottom:26px}
+.sect h3{font-size:18px;color:var(--mut);font-weight:400;letter-spacing:1px;margin-bottom:12px;text-transform:uppercase}
+.sw{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.sw .c{width:64px;height:64px;border-radius:16px;border:3px solid transparent;position:relative}
+.sw .c.sel{border-color:#fff}
+.sw .c:after{content:"";position:absolute;right:6px;bottom:6px;width:18px;height:18px;border-radius:50%;background:var(--c2);border:2px solid rgba(0,0,0,.4)}
+.row{display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.row .k{width:230px;font-size:19px}
+.chip{padding:10px 16px;border-radius:12px;border:1.5px solid var(--line);font-size:17px;color:var(--txt);background:rgba(255,255,255,.03)}
+.chip.sel{background:var(--ac);color:#03181a;border-color:var(--ac);font-weight:700}
+.btn{padding:12px 20px;border-radius:12px;background:rgba(255,255,255,.08);font-size:18px;border:1.5px solid var(--line)}
+input[type=range]{width:360px;height:30px;accent-color:var(--ac)}
+.hint{font-size:15px;color:var(--mut);margin-top:4px}
+#toast{position:absolute;left:50%;bottom:130px;transform:translateX(-50%);background:rgba(0,0,0,.85);border:1px solid var(--line);
+  padding:12px 22px;border-radius:12px;font-size:18px;z-index:99;display:none}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- decorative frame -->
+  <svg class="frame" style="left:0;top:0" width="1280" height="720" viewBox="0 0 1280 720">
+    <defs>
+      <linearGradient id="fr" x1="0" x2="1"><stop offset="0" stop-color="#3b464d"/><stop offset=".5" stop-color="#58656d"/><stop offset="1" stop-color="#2c353b"/></linearGradient>
+    </defs>
+    <path d="M430 8 L860 8 L880 26 L1100 26" stroke="url(#fr)" stroke-width="4" fill="none"/>
+    <g fill="#4a565e"><rect x="560" y="30" width="22" height="10" rx="2"/><rect x="600" y="30" width="22" height="10" rx="2"/><rect x="640" y="30" width="22" height="10" rx="2"/></g>
+    <path d="M1000 18 l40 0 l12 14 l-40 0z M1050 18 l40 0 l12 14 l-40 0z" fill="#38434a"/>
+    <path d="M540 586 L700 586 L716 572 L1100 572 L1116 586 L1256 586" stroke="url(#fr)" stroke-width="3" fill="none"/>
+    <path d="M14 90 L14 560" stroke="#2a3338" stroke-width="3"/>
+  </svg>
+
+  <div id="topbar">
+    <div id="avatar" class="tap" onclick="openSettings()">
+      <svg width="30" height="30" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2" fill="#f2a0a0"/><path d="M3.5 21c1-5 4.5-7 8.5-7s7.5 2 8.5 7z" fill="#f2a0a0"/></svg>
+    </div>
+    <div id="weatherPill" class="tap" onclick="refreshWeather(true)"><span id="wIcon">⛅</span><span id="wPill">--° …</span></div>
+  </div>
+  <div id="topRight">
+    <span id="netTime"></span>
+    <div class="iconBtn tap" onclick="openSettings()" title="Настройки лаунчера">
+      <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.3"/><circle cx="8" cy="17" r="2.3"/></svg>
+    </div>
+  </div>
+
+  <div id="slotA" class="panel"></div>
+  <div id="slotB" class="panel"></div>
+  <div id="slotC" class="panel"></div>
+
+  <div id="clockBar">
+    <div class="t" id="cTime">00:00</div>
+    <div class="d"><span id="cDow">—</span><span id="cDate">—</span></div>
+    <div class="bar"><i id="cBar" style="width:0"></i></div>
+  </div>
+
+  <div id="carFloor"></div>
+  <div id="carWrap" class="tap"></div>
+
+  <div id="dock"></div>
+
+  <!-- all apps -->
+  <div id="ovApps" class="ov">
+    <div class="ovHead"><h2 id="appsTitle">Приложения</h2><div class="btn tap" onclick="closeOv()">✕ Закрыть</div></div>
+    <div class="ovBody"><div id="appsGrid" class="apps"></div></div>
+  </div>
+
+  <!-- settings -->
+  <div id="ovSet" class="ov">
+    <div class="ovHead"><h2>Настройки лаунчера</h2><div class="btn tap" onclick="closeOv()">✓ Готово</div></div>
+    <div class="ovBody" id="setBody"></div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+/* ---------- native bridge (with browser mock for preview) ---------- */
+var A = window.Android || {
+  getApps:function(){return JSON.stringify([
+    {pkg:"ru.yandex.yandexnavi",label:"Навигатор"},{pkg:"ru.dublgis.dgismobile",label:"2ГИС"},{pkg:"ru.yandex.music",label:"Я.Музыка"},
+    {pkg:"com.google.android.youtube",label:"YouTube"},{pkg:"com.android.chrome",label:"Chrome"},{pkg:"com.android.settings",label:"Настройки"},
+    {pkg:"com.syu.radio",label:"Радио"},{pkg:"com.android.calculator2",label:"Калькулятор"},{pkg:"com.whatsapp",label:"WhatsApp"}]);},
+  getIcon:function(){return "";}, launch:function(p){toast("Запуск: "+p);return true;}, isInstalled:function(){return false;},
+  openSystemSettings:function(){toast("Системные настройки");}, openHomeSettings:function(){}, openMusicAccess:function(){toast("Доступ к уведомлениям");},
+  hasMusicAccess:function(){return false;}, media:function(c){toast("Медиа: "+c);}, pickCarPhoto:function(){toast("Выбор фото");},
+  getCarPhoto:function(){return "";}, clearCarPhoto:function(){}, requestLocation:function(){}, fetchWeather:function(){},
+  version:function(){return "preview";}
+};
+
+/* ---------- state ---------- */
+var THEMES=[
+  {n:"Бирюза",a:"#22e3d6",b:"#ff9a1f"},{n:"Синий",a:"#3aa0ff",b:"#ffc23a"},{n:"Красный",a:"#ff3b4a",b:"#ffb02e"},
+  {n:"Зелёный",a:"#3dff8a",b:"#ffd23a"},{n:"Фиолет",a:"#b36bff",b:"#ff6bd0"},{n:"Оранж",a:"#ff8a1f",b:"#22e3d6"},
+  {n:"Белый",a:"#e8eef5",b:"#ff9a1f"},{n:"Жёлтый",a:"#ffd23a",b:"#3aa0ff"}];
+var WIDGETS={music:"Музыка",weather:"Погода",speed:"Скорость / компас",calendar:"Календарь",clock:"Часы",apps:"Ярлыки"};
+var SLOTS={A:"Левый верхний",B:"Левый средний",C:"Правый верхний"};
+var DOCK=[
+  {id:"nav",t:"Навигатор",ic:'<path d="M12 2 L20 21 L12 16.5 L4 21 Z"/>',def:["ru.yandex.yandexnavi","ru.dublgis.dgismobile","ru.yandex.yandexmaps","com.google.android.apps.maps","com.waze"]},
+  {id:"music",t:"Музыка",ic:'<circle cx="7" cy="17" r="3"/><circle cx="17" cy="15" r="3"/><path d="M10 17V5l10-2v12"/>',def:["ru.yandex.music","com.spotify.music","com.google.android.apps.youtube.music","com.vkontakte.android","com.android.music","com.syu.music"]},
+  {id:"video",t:"Видео",ic:'<circle cx="12" cy="12" r="9.5"/><path d="M10 8.5l6 3.5-6 3.5z" fill="currentColor"/>',def:["com.google.android.youtube","com.syu.video","com.android.gallery3d"]},
+  {id:"apps",t:"Меню",ic:'<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',def:[]},
+  {id:"radio",t:"Радио",ic:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M9 10v4M12 8.5v7M15 10v4"/>',def:["com.syu.radio","com.android.fmradio","com.microntek.radio","com.ts.radio","com.fyt.radio","com.hct.radio","com.android.radio"]},
+  {id:"phone",t:"Телефон",ic:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',def:["com.syu.bt","com.android.bluetooth","com.microntek.bluetooth","com.android.dialer","com.google.android.dialer"]},
+  {id:"cam",t:"Камера",ic:'<circle cx="12" cy="10" r="6.5"/><circle cx="12" cy="10" r="2.5"/><path d="M8 20h8M12 16.5V20"/>',def:["com.syu.camera","com.android.camera2","com.android.camera","com.google.android.GoogleCamera"]},
+  {id:"sys",t:"Настройки",ic:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',def:[]}
+];
+var cfg = load();
+function load(){var d={theme:0,custom:null,slots:{A:"music",B:"speed",C:"calendar"},dock:{},shortcuts:[],carLabel:""};
+  try{var s=JSON.parse(localStorage.getItem("cfg")||"{}");for(var k in s)d[k]=s[k];}catch(e){} return d;}
+function save(){try{localStorage.setItem("cfg",JSON.stringify(cfg));}catch(e){}}
+var live={temp:null,code:null,city:"",wind:null,hum:null,uv:null,press:null,speed:0,head:null,alt:null,
+  title:"",artist:"",app:"",art:"",playing:false,musicAccess:false};
+
+/* ---------- utils ---------- */
+function $(id){return document.getElementById(id)}
+function toast(t){var e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.display="none"},2200)}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function fit(){var s=Math.min(innerWidth/1280,innerHeight/720),st=$("stage");
+  st.style.transform="scale("+s+")";st.style.left=((innerWidth-1280*s)/2)+"px";st.style.top=((innerHeight-720*s)/2)+"px";}
+addEventListener("resize",fit);
+function applyTheme(){var t=cfg.custom||THEMES[cfg.theme]||THEMES[0];
+  document.documentElement.style.setProperty("--ac",t.a);document.documentElement.style.setProperty("--ac2",t.b);}
+function longPress(el,fn,short){var tm,fired;
+  el.addEventListener("touchstart",function(){fired=false;tm=setTimeout(function(){fired=true;fn();},650)},{passive:true});
+  el.addEventListener("touchend",function(e){clearTimeout(tm);if(fired){e.preventDefault();}},false);
+  el.addEventListener("touchmove",function(){clearTimeout(tm)},{passive:true});
+  el.addEventListener("contextmenu",function(e){e.preventDefault();fn();});
+  el.addEventListener("click",function(e){if(fired){fired=false;return;} short&&short(e);});}
+
+var appsCache=null;
+function apps(){if(!appsCache){try{appsCache=JSON.parse(A.getApps());}catch(e){appsCache=[];}
+  appsCache.sort(function(a,b){return a.label.localeCompare(b.label,"ru")});}return appsCache;}
+var iconCache={};
+function icon(pkg){if(iconCache[pkg]===undefined){try{iconCache[pkg]=A.getIcon(pkg)||"";}catch(e){iconCache[pkg]="";}}return iconCache[pkg];}
+function appLabel(pkg){var a=apps().filter(function(x){return x.pkg===pkg})[0];return a?a.label:pkg;}
+
+/* ---------- dock ---------- */
+function resolveDock(d){var p=cfg.dock[d.id];if(p)return p;
+  for(var i=0;i<d.def.length;i++){if(A.isInstalled(d.def[i]))return d.def[i];}return null;}
+function buildDock(){var h="";DOCK.forEach(function(d){h+='<div class="d tap" data-id="'+d.id+'"><svg viewBox="0 0 24 24" style="color:#dfe9ea">'+d.ic+'</svg><span>'+d.t+'</span></div>';});
+  $("dock").innerHTML=h;
+  [].forEach.call(document.querySelectorAll("#dock .d"),function(el){var d=DOCK.filter(function(x){return x.id===el.dataset.id})[0];
+    longPress(el,function(){ if(d.id==="apps"||d.id==="sys")return openSettings(); pickApp("Кнопка «"+d.t+"»",function(p){cfg.dock[d.id]=p;save();toast(d.t+" → "+appLabel(p));});},
+      function(){dockTap(d);});});}
+function dockTap(d){
+  if(d.id==="apps")return openApps();
+  if(d.id==="sys")return A.openSystemSettings();
+  var p=resolveDock(d);
+  if(p&&A.launch(p))return;
+  pickApp("Выберите приложение для «"+d.t+"»",function(p){cfg.dock[d.id]=p;save();A.launch(p);});
+}
+
+/* ---------- app drawer / picker ---------- */
+var pickCb=null;
+function openApps(){pickCb=null;$("appsTitle").textContent="Приложения";renderApps();$("ovApps").classList.add("on");}
+function pickApp(title,cb){pickCb=cb;$("appsTitle").textContent=title;renderApps();$("ovApps").classList.add("on");}
+function renderApps(){var h="";apps().forEach(function(a){var ic=icon(a.pkg);
+  h+='<div class="a tap" data-p="'+esc(a.pkg)+'">'+(ic?'<img src="'+ic+'">':'<div class="ph"></div>')+'<span>'+esc(a.label)+'</span></div>';});
+  $("appsGrid").innerHTML=h||'<div class="hint">Нет приложений</div>';
+  [].forEach.call(document.querySelectorAll("#appsGrid .a"),function(el){el.onclick=function(){var p=el.dataset.p;
+    if(pickCb){var cb=pickCb;pickCb=null;closeOv();cb(p);}else{closeOv();A.launch(p);}};});}
+function closeOv(){[].forEach.call(document.querySelectorAll(".ov"),function(o){o.classList.remove("on")});render();}
+window.onBack=function(){var open=document.querySelector(".ov.on");if(open){closeOv();return true;}return false;};
+
+/* ---------- widgets ---------- */
+var SVG={
+ prev:'<svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
+ next:'<svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
+ play:'<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>',
+ pause:'<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>'
+};
+function W_music(el,wd,ht){
+  var big=ht>200, cs=big?150:132;
+  var title=live.title||"Нет воспроизведения", sub=live.artist||(live.musicAccess?"Включите музыку":"Нажмите, чтобы разрешить доступ");
+  el.innerHTML='<div class="w">'+
+   '<div class="lbl" style="display:flex;justify-content:space-between;width:'+(wd-cs-56)+'px"><span>'+(live.app?esc(live.app):"Музыка")+'</span><span class="glow">♪</span></div>'+
+   '<div class="ellip" style="font-size:'+(big?28:26)+'px;margin-top:8px;width:'+(wd-cs-56)+'px">'+esc(title)+'</div>'+
+   '<div class="ellip" style="font-size:17px;color:var(--mut);margin-top:4px;width:'+(wd-cs-56)+'px">'+esc(sub)+'</div>'+
+   '<div class="ctrl" style="position:absolute;left:14px;bottom:'+(big?20:12)+'px">'+
+     '<div class="tap" data-m="prev">'+SVG.prev+'</div><div class="tap" data-m="play">'+(live.playing?SVG.pause:SVG.play)+'</div><div class="tap" data-m="next">'+SVG.next+'</div></div>'+
+   '<div class="cover tap'+(live.playing?' spin':'')+'" style="right:18px;top:'+((ht-cs)/2)+'px;width:'+cs+'px;height:'+cs+'px;'+(live.art?'background-image:url('+live.art+')':'')+'"></div></div>';
+  [].forEach.call(el.querySelectorAll("[data-m]"),function(b){b.onclick=function(e){e.stopPropagation();A.media(b.dataset.m);
+    if(b.dataset.m==="play"){live.playing=!live.playing;render();}}});
+  el.querySelector(".cover").onclick=function(e){e.stopPropagation();openMusic();};
+  el.onclick=function(){openMusic();};
+}
+function openMusic(){if(!live.musicAccess&&!A.hasMusicAccess()){A.openMusicAccess();return;}
+  var d=DOCK[1];var p=resolveDock(d);if(p&&A.launch(p))return;pickApp("Выберите музыкальное приложение",function(p){cfg.dock.music=p;save();A.launch(p);});}
+
+var WCODE={0:["Ясно","☀️"],1:["Малооблачно","🌤"],2:["Облачно","⛅"],3:["Пасмурно","☁️"],45:["Туман","🌫"],48:["Туман","🌫"],51:["Морось","🌦"],53:["Морось","🌦"],55:["Морось","🌦"],
+ 61:["Дождь","🌧"],63:["Дождь","🌧"],65:["Ливень","🌧"],66:["Ледяной дождь","🌧"],67:["Ледяной дождь","🌧"],71:["Снег","🌨"],73:["Снег","🌨"],75:["Снегопад","❄️"],77:["Снег","🌨"],
+ 80:["Ливень","🌦"],81:["Ливень","🌧"],82:["Ливень","⛈"],85:["Снег","🌨"],86:["Снегопад","❄️"],95:["Гроза","⛈"],96:["Гроза","⛈"],99:["Гроза","⛈"]};
+function wtxt(){var c=WCODE[live.code];return c||["—","⛅"];}
+function W_weather(el,wd,ht){var c=wtxt(),big=ht>200;
+  el.innerHTML='<div class="w">'+
+   '<div style="display:flex;align-items:flex-start;justify-content:space-between">'+
+    '<div><div class="big" style="font-size:'+(big?70:58)+'px">'+(live.temp==null?"--":Math.round(live.temp))+'°</div>'+
+    '<div style="font-size:17px;color:var(--mut);margin-top:6px">'+esc(live.city||"Определяю место…")+' · '+c[0]+'</div></div>'+
+    '<div style="font-size:'+(big?72:60)+'px;filter:drop-shadow(0 0 10px var(--ac))">'+c[1]+'</div></div>'+
+   '<div style="position:absolute;left:20px;right:20px;bottom:'+(big?22:14)+'px;display:flex;justify-content:space-between;text-align:center">'+
+    stat("ВЕТЕР",live.wind==null?"--":Math.round(live.wind)+" м/с")+stat("ВЛАЖН.",live.hum==null?"--":live.hum+"%")+
+    stat("УФ",live.uv==null?"--":(Math.round(live.uv*10)/10))+stat("ДАВЛ.",live.press==null?"--":Math.round(live.press*0.750062)+" мм")+'</div></div>';
+  el.onclick=function(){refreshWeather(true)};
+}
+function stat(k,v){return '<div><div style="font-size:14px;color:var(--mut);letter-spacing:1px">'+k+'</div><div style="font-size:19px;margin-top:3px" class="glow">'+v+'</div></div>'}
+function dirName(h){if(h==null)return"—";return["С","СВ","В","ЮВ","Ю","ЮЗ","З","СЗ"][Math.round(h/45)%8];}
+function W_speed(el,wd,ht){var big=ht>200,R=big?170:150;
+  var hd=live.head==null?0:live.head;
+  el.innerHTML='<div class="w">'+
+   '<div class="rose" style="left:14px;top:'+((ht-R)/2)+'px;width:'+R+'px;height:'+R+'px">'+
+    '<svg viewBox="0 0 160 160" width="'+R+'" height="'+R+'"><g stroke="var(--ac)" fill="none" opacity=".9">'+
+     '<circle cx="80" cy="80" r="70" stroke-width="2" stroke-dasharray="3 6"/><circle cx="80" cy="80" r="54" stroke-width="4" style="filter:drop-shadow(0 0 6px var(--ac))"/>'+
+     '<path d="M80 2v16M80 142v16M2 80h16M142 80h16" stroke-width="3"/></g>'+
+     '<g transform="rotate('+hd+' 80 80)"><path d="M80 14 l7 14 h-14z" fill="var(--ac2)"/></g></svg>'+
+    '<div class="num">'+(live.head==null?"---":Math.round(hd))+'<small>'+dirName(live.head)+'</small></div></div>'+
+   '<div style="position:absolute;right:22px;top:14px;text-align:right">'+
+    '<div class="lbl">Скорость</div><div class="big glow" style="font-size:'+(big?80:66)+'px">'+Math.round(live.speed||0)+'</div>'+
+    '<div style="font-size:16px;color:var(--mut)">км/ч</div></div>'+
+   '<div style="position:absolute;right:22px;top:'+(big?150:122)+'px;font-size:16px;color:var(--mut);text-align:right">'+
+    'Высота <b class="glow" style="font-weight:400">'+(live.alt==null?"--":Math.round(live.alt))+' м</b>'+(live.press!=null?' · '+Math.round(live.press)+' гПа':'')+'</div>'+
+   '<svg style="position:absolute;left:'+(R+30)+'px;top:30px;opacity:.8" width="'+(wd-R-190)+'" height="80" viewBox="0 0 100 60" preserveAspectRatio="none">'+
+    '<path d="'+spark()+'" fill="var(--ac)" opacity=".25"/><path d="'+spark(1)+'" stroke="var(--ac)" fill="none" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg></div>';
+}
+var speedHist=[];
+function spark(line){var n=speedHist.length;if(n<2)return line?"M0 55 L100 55":"M0 60 L0 55 L100 55 L100 60Z";
+  var mx=Math.max(40,Math.max.apply(null,speedHist)),p="";
+  speedHist.forEach(function(v,i){var x=i/(n-1)*100,y=58-v/mx*52;p+=(i?" L":"M")+x.toFixed(1)+" "+y.toFixed(1);});
+  return line?p:p+" L100 60 L0 60Z";}
+var MONTHS=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+var calOff=0;
+function W_calendar(el,wd,ht){var now=new Date(),d=new Date(now.getFullYear(),now.getMonth()+calOff,1);
+  var y=d.getFullYear(),m=d.getMonth(),start=(d.getDay()+6)%7,days=new Date(y,m+1,0).getDate(),prevDays=new Date(y,m,0).getDate();
+  var h='<div class="w" style="padding:12px 16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+   '<span class="tap" data-c="-1" style="font-size:24px;padding:0 10px;color:var(--ac)">‹</span>'+
+   '<span style="font-size:20px">'+MONTHS[m]+' <span style="color:var(--ac2)">'+y+'</span></span>'+
+   '<span class="tap" data-c="1" style="font-size:24px;padding:0 10px;color:var(--ac)">›</span></div><div class="cal">';
+  ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].forEach(function(x){h+='<b>'+x+'</b>'});
+  var cells=Math.ceil((start+days)/7)*7;
+  for(var i=0;i<cells;i++){var dn=i-start+1,cls="",txt;
+    if(dn<1){txt=prevDays+dn;cls="o";}else if(dn>days){txt=dn-days;cls="o";}
+    else{txt=dn;if(i%7>4)cls="we";if(calOff===0&&dn===now.getDate())cls="today";}
+    h+='<span class="'+cls+'"'+(cells>35?' style="padding:2px 0"':'')+'>'+txt+'</span>';}
+  el.innerHTML=h+'</div></div>';
+  [].forEach.call(el.querySelectorAll("[data-c]"),function(b){b.onclick=function(e){e.stopPropagation();calOff+=+b.dataset.c;render();}});
+  el.onclick=function(){if(calOff){calOff=0;render();}};
+}
+var MGEN=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+var DOW=["Воскресенье","Понедельник","Вторник","Среда","Четверг","Пятница","Суббота"];
+function W_clock(el,wd,ht){var n=new Date();
+  el.innerHTML='<div class="w" style="display:flex;flex-direction:column;justify-content:center;align-items:center">'+
+   '<div class="big glow" style="font-size:'+(ht>200?110:88)+'px;letter-spacing:4px">'+pad(n.getHours())+':'+pad(n.getMinutes())+'</div>'+
+   '<div style="font-size:20px;color:var(--mut);margin-top:8px">'+DOW[n.getDay()]+', '+n.getDate()+' '+MGEN[n.getMonth()]+'</div></div>';
+}
+function W_apps(el,wd,ht){var list=(cfg.shortcuts||[]).slice(0,6);
+  var h='<div class="w" style="padding:10px"><div class="agrid" style="grid-template-rows:repeat(2,1fr)">';
+  for(var i=0;i<6;i++){var p=list[i];
+    if(p){var ic=icon(p);h+='<div class="a tap" data-i="'+i+'">'+(ic?'<img src="'+ic+'">':'<div class="ph">•</div>')+'<span>'+esc(appLabel(p))+'</span></div>';}
+    else h+='<div class="a tap" data-i="'+i+'"><div class="ph">+</div><span>Добавить</span></div>';}
+  el.innerHTML=h+'</div></div>';
+  [].forEach.call(el.querySelectorAll("[data-i]"),function(b){var i=+b.dataset.i;
+    longPress(b,function(){setShortcut(i)},function(e){e.stopPropagation();var p=(cfg.shortcuts||[])[i];if(p)A.launch(p);else setShortcut(i);});});
+  el.onclick=null;
+}
+function setShortcut(i){pickApp("Ярлык №"+(i+1),function(p){cfg.shortcuts=cfg.shortcuts||[];cfg.shortcuts[i]=p;save();render();});}
+function pad(n){return(n<10?"0":"")+n}
+
+function renderSlot(id){var el=$("slot"+id),t=cfg.slots[id]||"clock";
+  var fn=window["W_"+t]||W_clock;el.onclick=null;fn(el,el.offsetWidth,el.offsetHeight);
+  if(!el._lp){el._lp=1;el.addEventListener("contextmenu",function(e){e.preventDefault();openSettings();});
+    var tm;el.addEventListener("touchstart",function(){tm=setTimeout(function(){openSettings("slots")},900)},{passive:true});
+    el.addEventListener("touchend",function(){clearTimeout(tm)});el.addEventListener("touchmove",function(){clearTimeout(tm)},{passive:true});}}
+function render(){["A","B","C"].forEach(renderSlot);
+  var c=wtxt();$("wIcon").textContent=c[1];$("wPill").textContent=(live.temp==null?"--":Math.round(live.temp))+"° "+c[0]+(live.city?" · "+live.city:"");
+}
+
+/* ---------- clock ---------- */
+function tick(){var n=new Date();$("cTime").textContent=pad(n.getHours())+":"+pad(n.getMinutes());
+  $("cDow").textContent=DOW[n.getDay()];$("cDate").textContent=pad(n.getDate())+"/"+pad(n.getMonth()+1);
+  $("cBar").style.width=((n.getHours()*60+n.getMinutes())/1440*100)+"%";
+  if(n.getSeconds()===0&&(cfg.slots.A==="clock"||cfg.slots.B==="clock"||cfg.slots.C==="clock"))render();}
+setInterval(tick,1000);
+
+/* ---------- native callbacks ---------- */
+window.onLocation=function(lat,lon,alt,bearing,speedMs,hasBearing){
+  live.alt=alt;live.speed=Math.max(0,speedMs*3.6);if(hasBearing&&live.speed>3)live.head=bearing;
+  speedHist.push(live.speed);if(speedHist.length>40)speedHist.shift();
+  live.lat=lat;live.lon=lon;
+  if(!live.wAt||Date.now()-live.wAt>20*60000){live.wAt=Date.now();A.fetchWeather(lat,lon);}
+  if(cfg.slots.A==="speed"||cfg.slots.B==="speed"||cfg.slots.C==="speed")render();
+};
+window.onWeather=function(json,city){try{var j=typeof json==="string"?JSON.parse(json):json,c=j.current||{};
+  live.temp=c.temperature_2m;live.code=c.weather_code;live.wind=c.wind_speed_10m;live.hum=c.relative_humidity_2m;
+  live.uv=c.uv_index;live.press=c.surface_pressure;if(city)live.city=city;try{localStorage.setItem("lastW",JSON.stringify(live))}catch(e){}render();}catch(e){}};
+window.onMedia=function(title,artist,app,art,playing){live.title=title;live.artist=artist;live.app=app;if(art!==null)live.art=art;live.playing=!!playing;live.musicAccess=true;render();};
+window.onMusicAccess=function(ok){live.musicAccess=!!ok;render();};
+window.onCarPhoto=function(uri){setCar();};
+window.onResume=function(){appsCache=null;live.musicAccess=A.hasMusicAccess();render();};
+function refreshWeather(user){if(live.lat!=null){A.fetchWeather(live.lat,live.lon);if(user)toast("Обновляю погоду…");}else{A.requestLocation();if(user)toast("Жду GPS…");}}
+
+/* ---------- car ---------- */
+function setCar(){var p="";try{p=A.getCarPhoto()||"";}catch(e){}
+  if(p){$("carWrap").innerHTML='<img src="'+p+'">';return;}
+  var im=new Image();im.onload=function(){$("carWrap").innerHTML='<img src="car.png">';};
+  im.onerror=function(){$("carWrap").innerHTML=CAR_SVG;};im.src="car.png";}
+var CAR_SVG='<svg viewBox="0 0 640 240" xmlns="http://www.w3.org/2000/svg">'+
+'<defs>'+
+ '<linearGradient id="paint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a525a"/><stop offset=".18" stop-color="#1b1f24"/><stop offset=".5" stop-color="#0a0c0f"/><stop offset=".62" stop-color="#2a3036"/><stop offset=".7" stop-color="#0c0e11"/><stop offset="1" stop-color="#050607"/></linearGradient>'+
+ '<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5d6e78"/><stop offset=".35" stop-color="#1a242b"/><stop offset=".6" stop-color="#0b1115"/><stop offset="1" stop-color="#2b3a42"/></linearGradient>'+
+ '<linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f7f9"/><stop offset=".5" stop-color="#8b959c"/><stop offset="1" stop-color="#dfe5e9"/></linearGradient>'+
+ '<radialGradient id="rim" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#d9dee2"/><stop offset=".7" stop-color="#9aa3aa"/><stop offset="1" stop-color="#5c656c"/></radialGradient>'+
+ '<linearGradient id="hl" x1="0" x2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9fb4c0"/></linearGradient>'+
+'</defs>'+
+'<ellipse cx="320" cy="214" rx="300" ry="14" fill="#000" opacity=".75"/>'+
+/* body */
+'<path d="M34 176 L28 160 Q22 140 34 128 L44 122 Q120 104 222 96 Q262 66 300 54 Q350 44 404 48 Q454 52 498 88 L560 96 Q590 100 598 112 L604 132 Q606 150 600 166 L594 178 L522 180 A52 52 0 0 0 418 180 L200 180 A52 52 0 0 0 96 180 Z" fill="url(#paint)" stroke="#2c333a" stroke-width="1.2"/>'+
+/* shoulder highlight / character line */
+'<path d="M60 132 Q200 120 330 118 Q470 116 592 120" stroke="#6b757e" stroke-width="1.6" fill="none" opacity=".8"/>'+
+'<path d="M110 150 Q300 146 520 148" stroke="#3a424a" stroke-width="1.2" fill="none"/>'+
+/* rocker */
+'<path d="M206 176 L412 176" stroke="#2b3238" stroke-width="5"/>'+
+/* greenhouse */
+'<path d="M236 98 Q270 70 304 60 Q350 52 400 55 Q440 58 474 88 Z" fill="url(#glass)" stroke="url(#chrome)" stroke-width="2.2"/>'+
+'<path d="M346 56 L340 97" stroke="#0b0e11" stroke-width="7"/>'+
+'<path d="M432 66 Q450 76 462 88 L446 89 Z" fill="#0b0e11"/>'+
+'<path d="M250 92 Q280 72 312 64 L300 92Z" fill="#fff" opacity=".07"/>'+
+/* door lines & handles */
+'<path d="M338 100 L334 174 M232 100 Q226 140 236 176" stroke="#000" stroke-width="1.2" fill="none" opacity=".9"/>'+
+'<rect x="300" y="122" width="22" height="5" rx="2.5" fill="url(#chrome)"/><rect x="404" y="121" width="22" height="5" rx="2.5" fill="url(#chrome)"/>'+
+/* mirror */
+'<path d="M236 100 L248 92 L262 94 L262 106 L242 108 Z" fill="#0c0f12" stroke="#30373e"/>'+
+'<path d="M246 104 l14 -1" stroke="#ffb02e" stroke-width="2"/>'+
+/* headlight (restyle: projector + LED strip) */
+'<path d="M36 126 Q70 114 112 110 L118 118 Q86 126 46 138 Z" fill="url(#hl)" stroke="#9aa6ad"/>'+
+'<path d="M48 132 Q80 122 110 116" stroke="var(--ac)" stroke-width="2.4" fill="none" style="filter:drop-shadow(0 0 4px var(--ac))"/>'+
+'<circle cx="62" cy="126" r="5" fill="#fff" opacity=".9"/>'+
+/* grille hint + chrome */
+'<path d="M28 142 Q30 136 40 136 L50 136 L46 152 L30 154 Z" fill="#0a0c0e" stroke="url(#chrome)" stroke-width="1.4"/>'+
+'<path d="M31 144 h14 M30 148 h14" stroke="#6d777e" stroke-width="1"/>'+
+/* fog light */
+'<path d="M44 160 L66 158 L64 166 L44 168 Z" fill="#14181c" stroke="#3b444b"/><circle cx="54" cy="163" r="3" fill="#dfe8ee"/>'+
+/* tail light */
+'<path d="M560 98 Q588 102 596 112 L598 124 L566 116 Z" fill="#8a0b14" stroke="#c4202d"/>'+
+'<path d="M570 106 L594 114" stroke="#ff4252" stroke-width="2" style="filter:drop-shadow(0 0 4px #ff2a3a)"/>'+
+/* trunk lip & rear bumper */
+'<path d="M500 89 L560 97" stroke="#59636b" stroke-width="1.5"/>'+
+'<path d="M596 150 L560 152" stroke="#2c333a" stroke-width="2"/>'+
+/* wheel arches shadow */
+'<path d="M96 180 A52 52 0 0 1 200 180" stroke="#000" stroke-width="7" fill="none"/>'+
+'<path d="M418 180 A52 52 0 0 1 522 180" stroke="#000" stroke-width="7" fill="none"/>'+
+wheel(148,182)+wheel(470,182)+
+'</svg>';
+function wheel(cx,cy){var s='<g transform="translate('+cx+' '+cy+')"><circle r="44" fill="#0b0b0c"/><circle r="42" fill="none" stroke="#1d1f22" stroke-width="3"/>'+
+ '<circle r="30" fill="url(#rim)"/><circle r="27" fill="#2b3035"/>';
+ for(var i=0;i<5;i++){var a=i*72;s+='<g transform="rotate('+a+')"><path d="M-3 -6 L-7 -27 L-1.5 -27 L0 -8 Z" fill="url(#rim)"/><path d="M3 -6 L7 -27 L1.5 -27 L0 -8 Z" fill="url(#rim)"/></g>';}
+ return s+'<circle r="8" fill="url(#rim)"/><circle r="3.5" fill="#333a40"/><circle r="30" fill="none" stroke="#e8edf0" stroke-width="1" opacity=".6"/></g>';}
+
+/* ---------- settings ---------- */
+function openSettings(focus){renderSettings();$("ovSet").classList.add("on");}
+function renderSettings(){
+  var h='<div class="sect"><h3>Цвет интерфейса</h3><div class="sw">';
+  THEMES.forEach(function(t,i){h+='<div class="c tap'+(!cfg.custom&&cfg.theme===i?' sel':'')+'" data-t="'+i+'" style="background:'+t.a+';--c2:'+t.b+'"></div>';});
+  h+='</div><div class="row" style="margin-top:16px"><span class="k">Свой цвет (оттенок)</span><input type="range" id="hue" min="0" max="359" value="'+(cfg.custom?cfg.custom.h:180)+'">'+
+     '<span class="chip tap'+(cfg.custom?' sel':'')+'" id="useHue">Применить свой</span></div>'+
+     '<div class="row"><span class="k">Второй цвет (акцент)</span><input type="range" id="hue2" min="0" max="359" value="'+(cfg.custom?cfg.custom.h2:32)+'"></div></div>';
+  h+='<div class="sect"><h3>Виджеты на рабочем столе</h3>';
+  for(var s in SLOTS){h+='<div class="row"><span class="k">'+SLOTS[s]+'</span>';
+    for(var w in WIDGETS)h+='<span class="chip tap'+(cfg.slots[s]===w?' sel':'')+'" data-s="'+s+'" data-w="'+w+'">'+WIDGETS[w]+'</span>';h+='</div>';}
+  h+='<div class="hint">Долгое нажатие на виджет тоже открывает эти настройки. Ярлыки: долгое нажатие на ярлык — заменить.</div></div>';
+  h+='<div class="sect"><h3>Кнопки нижней панели</h3>';
+  DOCK.forEach(function(d){if(d.id==="apps"||d.id==="sys")return;var p=resolveDock(d);
+    h+='<div class="row"><span class="k">'+d.t+'</span><span class="chip tap" data-d="'+d.id+'">'+(p?esc(appLabel(p)):"не выбрано")+'</span>'+
+    (cfg.dock[d.id]?'<span class="chip tap" data-dr="'+d.id+'">по умолчанию</span>':'')+'</div>';});
+  h+='</div><div class="sect"><h3>Машина</h3><div class="row"><span class="btn tap" id="carPick">Выбрать своё фото</span><span class="btn tap" id="carReset">Вернуть стандартную машину</span></div>'+
+     '<div class="hint">Лучше всего выглядит PNG без фона, машина боком или 3/4.</div></div>';
+  h+='<div class="sect"><h3>Система</h3><div class="row">'+
+     '<span class="btn tap" id="mAccess">'+(A.hasMusicAccess()?"✓ Доступ к музыке есть":"Разрешить доступ к музыке")+'</span>'+
+     '<span class="btn tap" id="homeSet">Сделать лаунчером по умолчанию</span>'+
+     '<span class="btn tap" id="sysSet">Настройки Android</span></div>'+
+     '<div class="hint">Доступ к музыке нужен, чтобы показывать название трека и обложку. Версия '+esc(A.version())+'</div></div>';
+  $("setBody").innerHTML=h;
+  [].forEach.call(document.querySelectorAll("#setBody [data-t]"),function(e){e.onclick=function(){cfg.theme=+e.dataset.t;cfg.custom=null;save();applyTheme();renderSettings();}});
+  function hsl2hex(h,s,l){s/=100;l/=100;var k=function(n){return(n+h/30)%12},a=s*Math.min(l,1-l),f=function(n){return l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)))};
+    return"#"+[f(0),f(8),f(4)].map(function(x){return("0"+Math.round(x*255).toString(16)).slice(-2)}).join("");}
+  function useHue(){var h1=+$("hue").value,h2=+$("hue2").value;cfg.custom={h:h1,h2:h2,a:hsl2hex(h1,95,56),b:hsl2hex(h2,100,56)};save();applyTheme();}
+  $("hue").oninput=useHue;$("hue2").oninput=useHue;$("useHue").onclick=function(){useHue();renderSettings();};
+  [].forEach.call(document.querySelectorAll("#setBody [data-s]"),function(e){e.onclick=function(){cfg.slots[e.dataset.s]=e.dataset.w;save();renderSettings();render();}});
+  [].forEach.call(document.querySelectorAll("#setBody [data-d]"),function(e){e.onclick=function(){var id=e.dataset.d,d=DOCK.filter(function(x){return x.id===id})[0];
+    pickApp("Кнопка «"+d.t+"»",function(p){cfg.dock[id]=p;save();openSettings();});}});
+  [].forEach.call(document.querySelectorAll("#setBody [data-dr]"),function(e){e.onclick=function(){delete cfg.dock[e.dataset.dr];save();renderSettings();}});
+  $("carPick").onclick=function(){A.pickCarPhoto();};
+  $("carReset").onclick=function(){A.clearCarPhoto();setCar();toast("Рисунок Accent возвращён");};
+  $("mAccess").onclick=function(){A.openMusicAccess();};
+  $("homeSet").onclick=function(){A.openHomeSettings();};
+  $("sysSet").onclick=function(){A.openSystemSettings();};
+}
+
+/* ---------- init ---------- */
+try{var lw=JSON.parse(localStorage.getItem("lastW")||"null");if(lw){["temp","code","city","wind","hum","uv","press"].forEach(function(k){live[k]=lw[k]});}}catch(e){}
+applyTheme();fit();buildDock();setCar();
+live.musicAccess=A.hasMusicAccess();
+longPress($("carWrap"),function(){A.pickCarPhoto();},function(){});
+render();tick();A.requestLocation();
+</script>
+</body>
+</html>
