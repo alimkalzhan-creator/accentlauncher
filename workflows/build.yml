@@ -1,0 +1,28 @@
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Build
+        run: |
+          cd "$(dirname "$(find . -maxdepth 3 -name settings.gradle | head -1)")"
+          gradle_cmd="./gradlew"
+          if [ ! -f gradlew ] || [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            curl -sSL https://services.gradle.org/distributions/gradle-8.14.3-bin.zip -o g.zip
+            unzip -q g.zip && gradle_cmd="$PWD/gradle-8.14.3/bin/gradle"
+          fi
+          chmod +x gradlew 2>/dev/null || true
+          $gradle_cmd --no-daemon assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AccentLauncher-apk
+          path: '**/app/build/outputs/apk/release/*.apk'
